@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress_victoria_vesta
+    ports:
+      - "4280:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_HOME: https://energiebewahrendekleidung.de/main
+      WORDPRESS_SITEURL: https://energiebewahrendekleidung.de/main
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: mysql:8.0
+    container_name: wordpress_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -u root -prootpassword -e 'SELECT 1'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  wpcli:
+    image: wordpress:cli
+    container_name: wordpress_cli
+    volumes:
+      - wordpress_data:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    entrypoint: >
+      sh -c "
+      until wp core is-installed --allow-root; do
+        echo 'Warte auf Datenbank...';
+        sleep 10;
+      done;
+      wp core install --url='https://energiebewahrendekleidung.de/main' \
+        --title='Victoria Vesta' \
+        --admin_user='admin' \
+        --admin_password='yd0o8@BpjWjWbwb' \
+        --admin_email='stuiber@ananta.de' \
+        --allow-root &&
+      wp option update home 'https://energiebewahrendekleidung.de/main' --allow-root &&
+      wp option update siteurl 'https://energiebewahrendekleidung.de/main' --allow-root
+      "
+    depends_on:
+      wordpress:
+        condition: service_healthy
+
+volumes:
+  wordpress_data:
+  db_data:
+
